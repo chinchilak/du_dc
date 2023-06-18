@@ -1,0 +1,25 @@
+version: '3'
+services:
+  flask-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres-db
+    environment:
+      - POSTGRES_HOST=postgres-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - POSTGRES_DB=mydatabase
+    ports:
+      - "8080:8080"
+
+  postgres-db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - POSTGRES_DB=mydatabase
+    ports:
+      - "5432:5432"
