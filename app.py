@@ -1,6 +1,10 @@
 from flask import Flask
-import psycopg2
 from playwright.sync_api import Playwright, sync_playwright
+import psycopg2
+import math
+
+CNT = 500
+IPP = 20
 
 def run(playwright: Playwright) -> list:
     browser = playwright.chromium.launch(headless=True)
@@ -9,16 +13,21 @@ def run(playwright: Playwright) -> list:
     page = browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36")
     page.goto("https://www.sreality.cz/hledani/byty")
 
+    titles = []
+    imglinks = []
+
     with page.expect_navigation():
         page.locator("button:has-text(\"Zobrazit\")").click()
     page.wait_for_load_state("networkidle")
 
-    elist = page.query_selector_all("span.name.ng-binding")
-    titles = [element.text_content() for element in elist]
-
-    imglinks = []
-    elements = page.query_selector_all(".property.ng-scope")
-    for element in elements:
+    page.wait_for_selector('span.name.ng-binding')
+    elements = page.query_selector_all('span.name.ng-binding')
+    if elements:
+        for element in elements:
+            titles.append(element.inner_text())
+    
+    elements2 = page.query_selector_all(".property.ng-scope")
+    for element in elements2:
         img_elements = element.query_selector_all("img")
         slist = []
         for img_element in img_elements:
@@ -26,6 +35,28 @@ def run(playwright: Playwright) -> list:
             if src != "/img/camera.svg":
                 slist.append(src)
         imglinks.append(slist)
+
+    nop = math.ceil(CNT/IPP)
+    
+    for i in range(2, nop + 1):
+        nrtostr = str(i)
+        with page.expect_navigation():
+            page.locator(f"a[href=\"/hledani/prodej/byty?strana={nrtostr}\"]").first.click()
+        page.wait_for_selector('span.name.ng-binding')
+        elements = page.query_selector_all('span.name.ng-binding')
+        if elements:
+            for element in elements:
+                titles.append(element.inner_text())
+        
+        elements2 = page.query_selector_all(".property.ng-scope")
+        for element in elements2:
+            img_elements = element.query_selector_all("img")
+            slist = []
+            for img_element in img_elements:
+                src = img_element.get_attribute("src")
+                if src != "/img/camera.svg":
+                    slist.append(src)
+            imglinks.append(slist)
 
     results = [(item, sub_item) for sublist, item in zip(imglinks, titles) for sub_item in sublist]
     browser.close()
